@@ -1,0 +1,12 @@
+{
+    "cSpell.ignoreWords": [
+        "mostra"
+    ],
+    "files.associations": {
+        "bitset": "cpp",
+        "chrono": "cpp",
+        "algorithm": "cpp",
+        "random": "cpp",
+        "iostream": "cpp"
+    }
+}
