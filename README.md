@@ -10,9 +10,9 @@ Existem dois métodos que podem ser seguidos para resolver problemas como o desc
 
 Métodos exatos visam iterar sobre todo o conjunto de soluções de um problema para obter sua resposta. Por conta disso, eles retornam a solução ótima do problema, ou seja, a melhor dentre todas as soluções. Por outro lado, para problemas da classe NP, não é possível encontrar estas soluções em tempo computacional aceitável a partir de certo ponto. Para ilustrar, uma instância do TSP com 60 vértices possui uma quantidade de soluções possíveis semelhante a quantidade de átomos no universo!
 
-Por outro lado, existem os métodos heurísticos, que tentar resolver estes problemas com um tempo computacional aceitável sem garantir sua otimalidade, mas que podem trazer boas soluções, e os meta-heurísticos, que tem a mesma finalidade, porém com o intuito de resolver vários tipos de problemas diferentes com um mesmo algoritmo.
+Por outro lado, existem os métodos heurísticos. Eles tentam resolver estes problemas com um tempo computacional aceitável, porém sem garantir sua otimalidade, e que podem trazer boas soluções. Assim como as meta-heurísticos, que tem a mesma finalidade, porém com o intuito de resolver vários tipos de problemas diferentes com um mesmo algoritmo.
 
-O algorítmio implementado neste repositório para resolver o TSP  se trata de uma meta-heurística denominada [GILS-RVND](https://www.sciencedirect.com/science/article/abs/pii/S037722171200269X) adaptada para resolver o presente problema.
+O algorítmio implementado neste repositório para resolver o TSP se trata de uma meta-heurística denominado [Algorítimo Genético](https://pt.wikipedia.org/wiki/Algoritmo_gen%C3%A9tico) adaptado para resolver o presente problema.
 
 ## Instância do TSP
 
@@ -31,7 +31,7 @@ M = | -- 10 20 30 |
 
 Para compilar o programa, basta utilizar o comando `make` pelo terminal na pasta raiz, gerando o arquivo executável `tsp.cpp`.
 
-Para executar, basta utilizar o seguinte comando, **substituindo INST NCIA por qualquer instância dentro da pasta `./instances`**.
+Para executar, basta utilizar o seguinte comando, **substituindo INSTÂNCIA por qualquer instância dentro da pasta `./instances`**.
 
 ``` bash
 ./tsp instances/INSTANCIA
@@ -39,7 +39,7 @@ Para executar, basta utilizar o seguinte comando, **substituindo INST NCIA por q
 
 ## Resultados
 
-A presente implementação do algoritmo consegue encontrar os resultados ótimos das soluções de até 300 vértices na maioria das vezes que é executada.
+> O algorítimo ainda se encontra em fase de implementação,
 
 ## TODO
 
