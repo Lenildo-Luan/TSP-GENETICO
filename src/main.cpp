@@ -31,7 +31,8 @@ int dimension;      // quantidade total de vertices
 
 // Untils
 void printData();                                                          // Mostra matriz de adjacencia
-void printPop(vector<tChromosome> &solucao);                 // Mostra a solução inicial gerada pel algorítimo escolhido
+void printPop(vector<tChromosome> &solucao);   
+void printSol(vector<int> &sol);              // Mostra a solução inicial gerada pel algorítimo escolhido
 // void custoSolucao(int *custoTotal, vector<int> solucao, int tamanhoArray); // Mostra o custo da solução gerada
 bool compareByCost(const tInsertion &data1, const tInsertion &data2);
 void showAdjacenciesList(vector< vector< pair<int, int> > > listOfAdjacencies, int father, int mother);
@@ -184,8 +185,11 @@ void generatePop(vector<tChromosome> &pop, int popSize){
   }
 } 
 void crossoverERX(vector<tChromosome> &pop){
-  int randomFatherPosition = 0;
-  int randomMotherPosition = 0;
+  // TODO Renomear variáveis
+  // TODO Reestruturar função para melhorar acoplamento
+  int randomFatherPosition = 0, randomMotherPosition = 0;
+  int currentVertice = 0, bestArc = 0, newArc = 0, bestArcPos = 0;
+  int initVertice = 0;
 
   random_device rd;
   mt19937 mt(rd());
@@ -194,12 +198,12 @@ void crossoverERX(vector<tChromosome> &pop){
   vector< vector< pair<int, int> > > listOfAdjacencies;
   vector< pair<int, int> > adjacencies;
   pair<int, int> adjacency;
-  vector<int> fathers;
+  vector<int> fathers, children, bestArcs;
 
   int matAdjIncluded[dimension][dimension];
   std::fill(*matAdjIncluded, *matAdjIncluded + dimension*dimension, 0);
 
-
+  // Iniciaaliza estruturas de dados
   for (int i = 0; i < dimension; i++){
     cout << "[ ";
 
@@ -216,40 +220,46 @@ void crossoverERX(vector<tChromosome> &pop){
   for (int i = 0; i < pop.size(); i++){
     fathers.push_back(i);
   }
+  children.push_back(1);
 
+  // Seleciona dois pais aleatórios
   // while(1) {
   //   randomFatherPosition = linear_i(mt);
   //   randomMotherPosition = linear_i(mt);
   //   if(randomFatherPosition != randomMotherPosition) break;
   // }
 
-    randomFatherPosition = 0;
-    randomMotherPosition = 1;
+  randomFatherPosition = 0;
+  randomMotherPosition = 1;
 
   fathers.erase(fathers.begin() + randomFatherPosition);
   fathers.erase(fathers.begin() + randomMotherPosition);
 
+  // Cria lista de arestas
   for (int i = 0; i < dimension; i++){
     if(matAdjIncluded[pop[randomFatherPosition].sol[i]-1][pop[randomFatherPosition].sol[i+1]-1] == 0) {
       adjacency = make_pair(pop[randomFatherPosition].sol[i], pop[randomFatherPosition].sol[i+1]);
       listOfAdjacencies[pop[randomFatherPosition].sol[i]-1].push_back(adjacency);
+      matAdjIncluded[pop[randomFatherPosition].sol[i]-1][pop[randomFatherPosition].sol[i+1]-1]++;
+
       adjacency = make_pair(pop[randomFatherPosition].sol[i+1], pop[randomFatherPosition].sol[i]);
       listOfAdjacencies[pop[randomFatherPosition].sol[i+1]-1].push_back(adjacency);
-
-      matAdjIncluded[pop[randomFatherPosition].sol[i]-1][pop[randomFatherPosition].sol[i+1]-1]++;
+      matAdjIncluded[pop[randomFatherPosition].sol[i+1]-1][pop[randomFatherPosition].sol[i]-1]++;
     }
 
     if(matAdjIncluded[pop[randomMotherPosition].sol[i]-1][pop[randomMotherPosition].sol[i+1]-1] == 0) {
       adjacency = make_pair(pop[randomMotherPosition].sol[i], pop[randomMotherPosition].sol[i+1]);
       listOfAdjacencies[pop[randomMotherPosition].sol[i]-1].push_back(adjacency);
+      matAdjIncluded[pop[randomMotherPosition].sol[i]-1][pop[randomMotherPosition].sol[i+1]-1]++;
+
       adjacency = make_pair(pop[randomMotherPosition].sol[i+1], pop[randomMotherPosition].sol[i]);
       listOfAdjacencies[pop[randomMotherPosition].sol[i+1]-1].push_back(adjacency);
-
-      matAdjIncluded[pop[randomMotherPosition].sol[i]-1][pop[randomMotherPosition].sol[i+1]-1]++;
+      matAdjIncluded[pop[randomMotherPosition].sol[i+1]-1][pop[randomMotherPosition].sol[i]-1]++;
     }
   }
 
-    for (int i = 0; i < dimension; i++){
+  // Mostra resultados
+  for (int i = 0; i < dimension; i++){
     cout << "[ ";
 
     for (int j = 0; j < dimension; j++){
@@ -258,9 +268,72 @@ void crossoverERX(vector<tChromosome> &pop){
 
     cout << "]" << endl;
   }
-  
+
   showAdjacenciesList(listOfAdjacencies, randomFatherPosition, randomMotherPosition);
-  //printMatAdjIncluded(matAdjIncluded);
+  
+  // Gera um filho
+  for(int i = 0; i < dimension-1; i++) { (12, 2), (12, 5), (12, 6),
+    bestArcPos = 0;
+
+    for(int j = 0; j < listOfAdjacencies[currentVertice].size(); j++){
+      cout << "[1]" << listOfAdjacencies[listOfAdjacencies[currentVertice][j].second-1].size() << endl;
+      if(listOfAdjacencies[listOfAdjacencies[currentVertice][j].second-1].size() > 0) {
+        bestArc = listOfAdjacencies[currentVertice][j].second;
+        bestArcs.push_back(j);
+        break;
+      }
+      bestArcPos++;
+    }
+    
+    for(int j = bestArcPos+1; j < listOfAdjacencies[currentVertice].size(); j++) {
+      newArc = listOfAdjacencies[currentVertice][j].second;
+      cout << "[2]" << listOfAdjacencies[newArc-1].size() << endl;
+      if(listOfAdjacencies[newArc-1].size() == 0) continue;
+
+      if(listOfAdjacencies[newArc-1].size() < listOfAdjacencies[bestArc-1].size()) {
+        bestArc = newArc;
+        bestArcPos = j;
+        bestArcs.clear();
+        bestArcs.push_back(j);
+      } else if(listOfAdjacencies[newArc-1].size() == listOfAdjacencies[bestArc-1].size()) {
+        bestArc = newArc;
+        bestArcPos = j;
+        bestArcs.push_back(j);
+      }
+    }
+    cout << bestArcs.size() << endl;
+    if(bestArcs.size() ==  0){
+      uniform_int_distribution<int> linear_j(1, dimension);
+      int randomVertice = 0;
+
+      while(1) {
+        randomVertice = linear_j(mt);
+
+        if(listOfAdjacencies[randomVertice-1].size() == 0 || randomVertice == currentVertice+1) continue;
+        else {
+          bestArc = randomVertice;
+          break;
+        }
+      }
+    } else {
+      uniform_int_distribution<int> linear_j(0, bestArcs.size() - 1);
+      bestArcPos = bestArcs[linear_j(mt)];
+      bestArc = listOfAdjacencies[currentVertice][bestArcPos].second;
+    }
+
+    cout << listOfAdjacencies[bestArc-1].size() << " " << bestArc << endl;
+    cout <<  "=========================================" << endl;
+
+    bestArcs.clear();
+    listOfAdjacencies[currentVertice].clear();
+    children.push_back(bestArc);
+    currentVertice = bestArc-1;
+  }
+
+  children.push_back(1);
+
+  //Mostra resultados
+  printSol(children);
 }
 
 // Untils
@@ -286,6 +359,17 @@ void printPop(vector<tChromosome> &pop){
 
     cout << "]" << endl;
   }
+}
+
+void printSol(vector<int> &sol){
+  cout << "SOLUTION" << endl << endl;
+  cout << "[ ";
+
+  for (int i = 0; i < sol.size(); i++){
+    cout << sol[i] << " ";
+  }
+
+  cout << "]" << endl;
 }
 
 // void custoSolucao(int *custoTotal, vector<int> solucao, int tamanhoArray)
