@@ -35,19 +35,21 @@ void printPop(vector<tChromosome> &solucao);
 void printSol(vector<int> &sol);              // Mostra a solução inicial gerada pel algorítimo escolhido
 // void custoSolucao(int *custoTotal, vector<int> solucao, int tamanhoArray); // Mostra o custo da solução gerada
 bool compareByCost(const tInsertion &data1, const tInsertion &data2);
+bool compareSolByCost(const tChromosome &data1, const tChromosome &data2);
 void showAdjacenciesList(vector< vector< pair<int, int> > > listOfAdjacencies, int father, int mother);
 
 // Genetic algorithm
 int construtivo(vector<int> &sol, int depot, float alpha);
 void genetic(vector<tChromosome> &pop, int Imax, int popSize);
+int doubleBridge(vector<int> &sol, int cost);
 
 // Procedures
 void generatePop(vector<tChromosome> &pop, int popSize);
-void crossoverERX(vector<tChromosome> &pop);
+void generateNewPop(vector<tChromosome> &pop);
+void crossoverERX(vector<int> &father, vector<int> &mother, tChromosome &children);
 
 //MAIN
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv){
   readData(argc, argv, &dimension, &matrizAdj);
   //printData();
 
@@ -64,8 +66,259 @@ int main(int argc, char **argv)
 }
 
 //Genetic algorithm
-int construtivo(vector<int> &sol, int depot, float alpha)
-{
+void genetic(vector<tChromosome> &pop, int Imax, int popSize){
+  int iter = 0;
+  tChromosome bestSol;
+
+  generatePop(pop, popSize);
+  bestSol = pop[0];
+  
+  while(iter < 50){
+    generateNewPop(pop);
+
+    if(pop[0].cost < bestSol.cost){
+      bestSol = pop[0];
+      iter = 0;
+    } else {
+      iter++;
+    }
+  }
+  
+
+  printPop(pop);
+}
+void generatePop(vector<tChromosome> &pop, int popSize){
+  //Declara Variáveis
+  random_device rd;
+  mt19937 mt(rd());
+  uniform_real_distribution<float> linear_f(0.0, 0.5); // Distribuição linear de reais para gerar alpha
+  float alpha = 0.0;
+  int depot = 1;
+
+  for (int i = 0; i < popSize; i++){
+    tChromosome chromosome;
+
+    alpha = linear_f(mt);
+    chromosome.cost = construtivo(chromosome.sol, depot, alpha);
+
+    pop.push_back(chromosome);
+  }
+
+  sort(pop.begin(), pop.end(), compareSolByCost);
+} 
+void generateNewPop(vector<tChromosome> &pop){
+  // Vars
+  int randomFatherPosition = 0, randomMotherPosition = 0;
+  int insertionPosition = 0;
+
+  // Data structs
+  vector<int> fathersDisponibility;
+  uniform_int_distribution<int> linear_mutation(0, 100);
+  uniform_int_distribution<int> linear_survivors(25, 74);
+
+  // Random numbers
+  random_device rd;
+  mt19937 mt(rd());
+
+  // Initialize Data Structs
+  for(int i = 0; i < pop.size(); i++){
+    fathersDisponibility.push_back(i);
+  }
+
+  // Reproduce
+  while(fathersDisponibility.size() > 1) {
+    // Select a random father and mother
+    uniform_int_distribution<int> linear_i(0, fathersDisponibility.size() - 1);
+    randomFatherPosition = linear_i(mt);
+    randomMotherPosition = linear_i(mt);
+    if(randomFatherPosition == randomMotherPosition) continue;
+
+    tChromosome children;
+
+    // Generate a children
+    crossoverERX(pop[fathersDisponibility[randomFatherPosition]].sol, 
+                 pop[fathersDisponibility[randomMotherPosition]].sol, 
+                 children);
+
+    // Appli mutation: 5% 
+    if(linear_mutation(mt) <= 5) {
+      children.cost = doubleBridge(children.sol, children.cost);
+      //cout << "MUTATION" << endl;
+    }
+
+    // cout << pop[fathersDisponibility[randomMotherPosition]].sol.size() << endl;
+    // assert(children.sol.size() == dimension+1);
+
+    // Insert the children
+    if(children.cost >= pop[pop.size()-1].cost){
+        pop.emplace(pop.end(), children);
+        //cout << "POS: " << pop.size()-1 << " COST: " << children.cost << endl;
+    } else {
+      for(int i = 0; i < pop.size(); i++){
+        if(children.cost <= pop[i].cost) {
+          pop.emplace(pop.begin() + i, children);
+          //cout << "POS: " << i << " COST: " << children.cost << endl;
+          break;
+        }
+      }
+    }
+    
+    //Discart fathers
+    fathersDisponibility.erase(fathersDisponibility.begin() + randomFatherPosition);
+    fathersDisponibility.erase(fathersDisponibility.begin() + randomMotherPosition - 
+                              ((randomFatherPosition < randomMotherPosition) ? 1 : 0));
+    
+  }
+  
+  // Select survivors
+  for(int i = 0; i < 25; i++){
+    int afff = linear_survivors(mt)-i;
+    pop.erase(pop.begin() + afff);
+    //cout << pop.size() << " " << afff << endl;
+  }
+}
+void crossoverERX(vector<int> &father, vector<int> &mother, tChromosome &children){
+  // Vars
+  int randomFatherPosition = 0, randomMotherPosition = 0;
+  int verticeIndex = 0, bestVertice = 0, newVertice = 0, bestVerticePos = 0;
+  int initVertice = 0;
+
+  // Random
+  random_device rd;
+  mt19937 mt(rd());
+
+  // Data Structs
+  vector< vector< pair<int, int> > > listOfAdjacencies;
+  vector< pair<int, int> > adjacencies;
+  pair<int, int> adjacency;
+  vector<int> bestArcs;
+  int matAdjIncluded[dimension][dimension];
+
+  // Iniciaaliza estruturas de dados
+  std::fill(*matAdjIncluded, *matAdjIncluded + dimension*dimension, 0);
+  // for (int i = 0; i < dimension; i++){
+  //   cout << "[ ";
+
+  //   for (int j = 0; j < dimension; j++){
+  //     cout << matAdjIncluded[i][j] << " ";
+  //   }
+
+  //   cout << "]" << endl;
+  // }
+
+  for (int i = 0; i < dimension; i++){
+    listOfAdjacencies.push_back(adjacencies);
+  }
+
+  children.sol.push_back(1);
+  children.cost = 0;
+
+  // Cria lista de arestas
+  for(int i = 0; i < dimension; i++){
+    if(matAdjIncluded[father[i]-1][father[i+1]-1] == 0) {
+      adjacency = make_pair(father[i], father[i+1]);
+      listOfAdjacencies[father[i]-1].push_back(adjacency);
+      matAdjIncluded[father[i]-1][father[i+1]-1]++;
+
+      adjacency = make_pair(father[i+1], father[i]);
+      listOfAdjacencies[father[i+1]-1].push_back(adjacency);
+      matAdjIncluded[father[i+1]-1][father[i]-1]++;
+    }
+
+    if(matAdjIncluded[mother[i]-1][mother[i+1]-1] == 0) {
+      adjacency = make_pair(mother[i], mother[i+1]);
+      listOfAdjacencies[mother[i]-1].push_back(adjacency);
+      matAdjIncluded[mother[i]-1][mother[i+1]-1]++;
+
+      adjacency = make_pair(mother[i+1], mother[i]);
+      listOfAdjacencies[mother[i+1]-1].push_back(adjacency);
+      matAdjIncluded[mother[i+1]-1][mother[i]-1]++;
+    }
+  }
+
+  // Mostra resultados
+  // for (int i = 0; i < dimension; i++){
+  //   cout << "[ ";
+
+  //   for (int j = 0; j < dimension; j++){
+  //     cout << matAdjIncluded[i][j] << " ";
+  //   }
+
+  //   cout << "]" << endl;
+  // }
+
+  // showAdjacenciesList(listOfAdjacencies, randomFatherPosition, randomMotherPosition);
+  
+  // Gera um filho
+  for(int i = 0; i < dimension-1; i++) { (12, 2), (12, 5), (12, 6),
+    bestVerticePos = 0;
+
+    for(int j = 0; j < listOfAdjacencies[verticeIndex].size(); j++){
+      // cout << "[1]" << listOfAdjacencies[listOfAdjacencies[verticeIndex][j].second-1].size() << endl;
+      if(listOfAdjacencies[listOfAdjacencies[verticeIndex][j].second-1].size() > 0) {
+        bestVertice = listOfAdjacencies[verticeIndex][j].second;
+        bestArcs.push_back(j);
+        break;
+      }
+      bestVerticePos++;
+    }
+    
+    for(int j = bestVerticePos + 1; j < listOfAdjacencies[verticeIndex].size(); j++) {
+      newVertice = listOfAdjacencies[verticeIndex][j].second;
+      // cout << "[2]" << listOfAdjacencies[newVertice-1].size() << endl;
+      if(listOfAdjacencies[newVertice-1].size() == 0) continue;
+
+      if(listOfAdjacencies[newVertice-1].size() < listOfAdjacencies[bestVertice-1].size()) {
+        bestVertice = newVertice;
+        bestVerticePos = j;
+        bestArcs.clear();
+        bestArcs.push_back(j);
+      } else if(listOfAdjacencies[newVertice-1].size() == listOfAdjacencies[bestVerticePos-1].size()) {
+        bestVerticePos = newVertice;
+        bestVerticePos = j;
+        bestArcs.push_back(j);
+      }
+    }
+    // cout << bestArcs.size() << endl;
+    if(bestArcs.size() ==  0){
+      uniform_int_distribution<int> linear_j(1, dimension);
+      int randomVertice = 0;
+
+      while(1) {
+        randomVertice = linear_j(mt);
+
+        if(listOfAdjacencies[randomVertice-1].size() == 0 || randomVertice == verticeIndex + 1) continue;
+        else {
+          bestVertice = randomVertice;
+          break;
+        }
+      }
+    } else {
+      uniform_int_distribution<int> linear_j(0, bestArcs.size() - 1);
+      bestVerticePos = bestArcs[linear_j(mt)];
+      bestVertice = listOfAdjacencies[verticeIndex][bestVerticePos].second;
+    }
+
+    // cout << listOfAdjacencies[bestVertice-1].size() << " " << bestVertice << endl;
+    // cout <<  "=========================================" << endl;
+
+    bestArcs.clear();
+    listOfAdjacencies[verticeIndex].clear();
+    children.sol.push_back(bestVertice);
+    children.cost += matrizAdj[children.sol[i]][bestVertice];
+    verticeIndex = bestVertice-1;
+  }
+
+  children.cost += matrizAdj[children.sol[children.sol.size()-1]][1];
+  children.sol.push_back(1);
+
+  //Mostra resultados
+  // cout << "cost: " << children.cost << endl;
+  //printSol(children.sol);
+}
+
+// Algorithms
+int construtivo(vector<int> &sol, int depot, float alpha){
   // Inicia variáveis
   vector<int> verticesList;           // Lista de vertices faltando
   vector<tInsertion> bestVerticesList; // Lista dos X melhores verticesList
@@ -86,16 +339,13 @@ int construtivo(vector<int> &sol, int depot, float alpha)
   sol.push_back(depot);
 
   // Gera lista de vertices faltantes
-  for (size_t i = 1; i <= dimension; i++)
-  {
-    if (i == depot)
-      continue;
+  for(size_t i = 1; i <= dimension; i++){
+    if (i == depot) continue;
     verticesList.push_back(i);
   }
 
   // Escolhe três vertices de forma aleatória
-  for (size_t i = 0; i < 3; i++)
-  {
+  for(size_t i = 0; i < 3; i++){
     uniform_int_distribution<int> linear_i(0, verticesList.size() - 1); // Distribuição linear de inteiros para escolher vertice inicial
     randomVertice = linear_i(mt);
 
@@ -111,16 +361,13 @@ int construtivo(vector<int> &sol, int depot, float alpha)
   costSol += matrizAdj[sol[3]][sol[4]];
 
   // Gera solução
-  while (1)
-  {
+  while(1){
     sizeSol = sol.size();
     sizeVerticesList = verticesList.size();
 
     // Gera lista de custo de vertices
-    for (size_t i = 0; i < sizeVerticesList; i++)
-    { // Itera sobre vértices restantes
-      for (size_t j = 1; j < sizeSol; j++)
-      { // Itera sobre a solução
+    for(size_t i = 0; i < sizeVerticesList; i++){ // Itera sobre vértices restantes
+      for(size_t j = 1; j < sizeSol; j++){ // Itera sobre a solução
         insertion.vertice = verticesList[i];
         insertion.pos = j;
         insertion.cost = (matrizAdj[sol[j - 1]][verticesList[i]] + matrizAdj[verticesList[i]][sol[j]]) - matrizAdj[sol[j - 1]][sol[j]];
@@ -159,181 +406,97 @@ int construtivo(vector<int> &sol, int depot, float alpha)
 
   return costSol;
 }
-void genetic(vector<tChromosome> &pop, int Imax, int popSize){
-  generatePop(pop, popSize);
-  crossoverERX(pop);
-
-  printPop(pop);
-}
-
-// Procedures
-void generatePop(vector<tChromosome> &pop, int popSize){
-  //Declara Variáveis
+int doubleBridge(vector<int> &sol, int cost){
   random_device rd;
-  mt19937 mt(rd());
-  uniform_real_distribution<float> linear_f(0.0, 0.5); // Distribuição linear de reais para gerar alpha
-  float alpha = 0.0;
-  int depot = 1;
+  mt19937_64 mt(rd());
+  uniform_int_distribution<int> linear_bme20(2, dimension / 3);
+  uniform_int_distribution<int> linear_bma20(2, dimension / 10);
 
-  for (int i = 0; i < popSize; i++){
-    tChromosome chromosome;
+  vector<int> subSeq1, subSeq2;
 
-    alpha = linear_f(mt);
-    chromosome.cost = construtivo(chromosome.sol, depot, alpha);
+  int sizeSubSeq1, sizeSubSeq2;
+  int initSubSeq1, initSubSeq2;
+  int initialCost, finalCost, deltaCost = 0;
 
-    pop.push_back(chromosome);
-  }
-} 
-void crossoverERX(vector<tChromosome> &pop){
-  // TODO Renomear variáveis
-  // TODO Reestruturar função para melhorar acoplamento
-  int randomFatherPosition = 0, randomMotherPosition = 0;
-  int currentVertice = 0, bestArc = 0, newArc = 0, bestArcPos = 0;
-  int initVertice = 0;
+  sizeSubSeq1 = linear_bme20(mt);
+  sizeSubSeq2 = linear_bme20(mt);
 
-  random_device rd;
-  mt19937 mt(rd());
-  uniform_int_distribution<int> linear_i(0, pop.size() - 1);
+  uniform_int_distribution<int> linear_p1(1, sol.size() - sizeSubSeq1 - 1);
+  uniform_int_distribution<int> linear_p2(1, sol.size() - sizeSubSeq2 - 1);
 
-  vector< vector< pair<int, int> > > listOfAdjacencies;
-  vector< pair<int, int> > adjacencies;
-  pair<int, int> adjacency;
-  vector<int> fathers, children, bestArcs;
+  while (1)
+  {
+    initSubSeq1 = linear_p1(mt);
+    initSubSeq2 = linear_p2(mt);
 
-  int matAdjIncluded[dimension][dimension];
-  std::fill(*matAdjIncluded, *matAdjIncluded + dimension*dimension, 0);
-
-  // Iniciaaliza estruturas de dados
-  for (int i = 0; i < dimension; i++){
-    cout << "[ ";
-
-    for (int j = 0; j < dimension; j++){
-      cout << matAdjIncluded[i][j] << " ";
-    }
-
-    cout << "]" << endl;
+    if ((initSubSeq2 <= (initSubSeq1 - sizeSubSeq2) && initSubSeq1 > sizeSubSeq2) || (initSubSeq2 >= (initSubSeq1 + sizeSubSeq1) && ((sol.size() - 1) - initSubSeq1 - (sizeSubSeq1 - 1)) > sizeSubSeq2))
+      break;
   }
 
-  for (int i = 0; i < dimension; i++){
-    listOfAdjacencies.push_back(adjacencies);
-  }
-  for (int i = 0; i < pop.size(); i++){
-    fathers.push_back(i);
-  }
-  children.push_back(1);
-
-  // Seleciona dois pais aleatórios
-  // while(1) {
-  //   randomFatherPosition = linear_i(mt);
-  //   randomMotherPosition = linear_i(mt);
-  //   if(randomFatherPosition != randomMotherPosition) break;
-  // }
-
-  randomFatherPosition = 0;
-  randomMotherPosition = 1;
-
-  fathers.erase(fathers.begin() + randomFatherPosition);
-  fathers.erase(fathers.begin() + randomMotherPosition);
-
-  // Cria lista de arestas
-  for (int i = 0; i < dimension; i++){
-    if(matAdjIncluded[pop[randomFatherPosition].sol[i]-1][pop[randomFatherPosition].sol[i+1]-1] == 0) {
-      adjacency = make_pair(pop[randomFatherPosition].sol[i], pop[randomFatherPosition].sol[i+1]);
-      listOfAdjacencies[pop[randomFatherPosition].sol[i]-1].push_back(adjacency);
-      matAdjIncluded[pop[randomFatherPosition].sol[i]-1][pop[randomFatherPosition].sol[i+1]-1]++;
-
-      adjacency = make_pair(pop[randomFatherPosition].sol[i+1], pop[randomFatherPosition].sol[i]);
-      listOfAdjacencies[pop[randomFatherPosition].sol[i+1]-1].push_back(adjacency);
-      matAdjIncluded[pop[randomFatherPosition].sol[i+1]-1][pop[randomFatherPosition].sol[i]-1]++;
-    }
-
-    if(matAdjIncluded[pop[randomMotherPosition].sol[i]-1][pop[randomMotherPosition].sol[i+1]-1] == 0) {
-      adjacency = make_pair(pop[randomMotherPosition].sol[i], pop[randomMotherPosition].sol[i+1]);
-      listOfAdjacencies[pop[randomMotherPosition].sol[i]-1].push_back(adjacency);
-      matAdjIncluded[pop[randomMotherPosition].sol[i]-1][pop[randomMotherPosition].sol[i+1]-1]++;
-
-      adjacency = make_pair(pop[randomMotherPosition].sol[i+1], pop[randomMotherPosition].sol[i]);
-      listOfAdjacencies[pop[randomMotherPosition].sol[i+1]-1].push_back(adjacency);
-      matAdjIncluded[pop[randomMotherPosition].sol[i+1]-1][pop[randomMotherPosition].sol[i]-1]++;
-    }
+  for (size_t i = 0; i < sizeSubSeq1; i++)
+  {
+    subSeq1.push_back(sol[initSubSeq1 + i]);
   }
 
-  // Mostra resultados
-  for (int i = 0; i < dimension; i++){
-    cout << "[ ";
-
-    for (int j = 0; j < dimension; j++){
-      cout << matAdjIncluded[i][j] << " ";
-    }
-
-    cout << "]" << endl;
+  for (size_t i = 0; i < sizeSubSeq2; i++)
+  {
+    subSeq2.push_back(sol[initSubSeq2 + i]);
   }
 
-  showAdjacenciesList(listOfAdjacencies, randomFatherPosition, randomMotherPosition);
-  
-  // Gera um filho
-  for(int i = 0; i < dimension-1; i++) { (12, 2), (12, 5), (12, 6),
-    bestArcPos = 0;
-
-    for(int j = 0; j < listOfAdjacencies[currentVertice].size(); j++){
-      cout << "[1]" << listOfAdjacencies[listOfAdjacencies[currentVertice][j].second-1].size() << endl;
-      if(listOfAdjacencies[listOfAdjacencies[currentVertice][j].second-1].size() > 0) {
-        bestArc = listOfAdjacencies[currentVertice][j].second;
-        bestArcs.push_back(j);
-        break;
-      }
-      bestArcPos++;
+  if (initSubSeq1 > initSubSeq2)
+  {
+    if ((initSubSeq1 - sizeSubSeq2) == initSubSeq2)
+    {
+      deltaCost = (matrizAdj[sol[initSubSeq2 - 1]][sol[initSubSeq1]] + matrizAdj[sol[initSubSeq1 + sizeSubSeq1 - 1]][sol[initSubSeq2]] + matrizAdj[sol[initSubSeq2 + sizeSubSeq2 - 1]][sol[initSubSeq1 + sizeSubSeq1]]) -
+                  (matrizAdj[sol[initSubSeq2 - 1]][sol[initSubSeq2]] + matrizAdj[sol[initSubSeq2 + sizeSubSeq2 - 1]][sol[initSubSeq1]] + matrizAdj[sol[initSubSeq1 + sizeSubSeq1 - 1]][sol[initSubSeq1 + sizeSubSeq1]]);
     }
-    
-    for(int j = bestArcPos+1; j < listOfAdjacencies[currentVertice].size(); j++) {
-      newArc = listOfAdjacencies[currentVertice][j].second;
-      cout << "[2]" << listOfAdjacencies[newArc-1].size() << endl;
-      if(listOfAdjacencies[newArc-1].size() == 0) continue;
+    else
+    {
+      initialCost = (matrizAdj[sol[initSubSeq1 - 1]][sol[initSubSeq1 + sizeSubSeq1]] + matrizAdj[sol[initSubSeq2 - 1]][sol[initSubSeq2 + sizeSubSeq2]]) -
+                    (matrizAdj[sol[initSubSeq1 - 1]][sol[initSubSeq1]] + matrizAdj[sol[initSubSeq1 + sizeSubSeq1 - 1]][sol[initSubSeq1 + sizeSubSeq1]] +
+                     matrizAdj[sol[initSubSeq2 - 1]][sol[initSubSeq2]] + matrizAdj[sol[initSubSeq2 + sizeSubSeq2 - 1]][sol[initSubSeq2 + sizeSubSeq2]]);
 
-      if(listOfAdjacencies[newArc-1].size() < listOfAdjacencies[bestArc-1].size()) {
-        bestArc = newArc;
-        bestArcPos = j;
-        bestArcs.clear();
-        bestArcs.push_back(j);
-      } else if(listOfAdjacencies[newArc-1].size() == listOfAdjacencies[bestArc-1].size()) {
-        bestArc = newArc;
-        bestArcPos = j;
-        bestArcs.push_back(j);
-      }
-    }
-    cout << bestArcs.size() << endl;
-    if(bestArcs.size() ==  0){
-      uniform_int_distribution<int> linear_j(1, dimension);
-      int randomVertice = 0;
+      finalCost = (matrizAdj[sol[initSubSeq1 - 1]][sol[initSubSeq2]] + matrizAdj[sol[initSubSeq2 + sizeSubSeq2 - 1]][sol[initSubSeq1 + sizeSubSeq1]] +
+                   matrizAdj[sol[initSubSeq2 - 1]][sol[initSubSeq1]] + matrizAdj[sol[initSubSeq1 + sizeSubSeq1 - 1]][sol[initSubSeq2 + sizeSubSeq2]]) -
+                  (matrizAdj[sol[initSubSeq1 - 1]][sol[initSubSeq1 + sizeSubSeq1]] + matrizAdj[sol[initSubSeq2 - 1]][sol[initSubSeq2 + sizeSubSeq2]]);
 
-      while(1) {
-        randomVertice = linear_j(mt);
-
-        if(listOfAdjacencies[randomVertice-1].size() == 0 || randomVertice == currentVertice+1) continue;
-        else {
-          bestArc = randomVertice;
-          break;
-        }
-      }
-    } else {
-      uniform_int_distribution<int> linear_j(0, bestArcs.size() - 1);
-      bestArcPos = bestArcs[linear_j(mt)];
-      bestArc = listOfAdjacencies[currentVertice][bestArcPos].second;
+      deltaCost = finalCost + initialCost;
     }
 
-    cout << listOfAdjacencies[bestArc-1].size() << " " << bestArc << endl;
-    cout <<  "=========================================" << endl;
+    sol.erase(sol.begin() + initSubSeq2, sol.begin() + initSubSeq2 + (sizeSubSeq2));
+    sol.insert(sol.begin() + initSubSeq2, subSeq1.begin(), subSeq1.begin() + subSeq1.size());
 
-    bestArcs.clear();
-    listOfAdjacencies[currentVertice].clear();
-    children.push_back(bestArc);
-    currentVertice = bestArc-1;
+    sol.erase(sol.begin() + initSubSeq1 + (sizeSubSeq1 - sizeSubSeq2), sol.begin() + initSubSeq1 + (sizeSubSeq1 - sizeSubSeq2) + (sizeSubSeq1));
+    sol.insert(sol.begin() + initSubSeq1 + (sizeSubSeq1 - sizeSubSeq2), subSeq2.begin(), subSeq2.begin() + subSeq2.size());
+  }
+  else
+  {
+    if (initSubSeq1 + sizeSubSeq1 == initSubSeq2)
+    {
+      deltaCost = (matrizAdj[sol[initSubSeq1 - 1]][sol[initSubSeq2]] + matrizAdj[sol[initSubSeq2 + sizeSubSeq2 - 1]][sol[initSubSeq1]] + matrizAdj[sol[initSubSeq1 + sizeSubSeq1 - 1]][sol[initSubSeq2 + sizeSubSeq2]]) -
+                  (matrizAdj[sol[initSubSeq1 - 1]][sol[initSubSeq1]] + matrizAdj[sol[initSubSeq1 + sizeSubSeq1 - 1]][sol[initSubSeq2]] + matrizAdj[sol[initSubSeq2 + sizeSubSeq2 - 1]][sol[initSubSeq2 + sizeSubSeq2]]);
+    }
+    else
+    {
+      initialCost = (matrizAdj[sol[initSubSeq1 - 1]][sol[initSubSeq1 + sizeSubSeq1]] + matrizAdj[sol[initSubSeq2 - 1]][sol[initSubSeq2 + sizeSubSeq2]]) -
+                    (matrizAdj[sol[initSubSeq1 - 1]][sol[initSubSeq1]] + matrizAdj[sol[initSubSeq1 + sizeSubSeq1 - 1]][sol[initSubSeq1 + sizeSubSeq1]] +
+                     matrizAdj[sol[initSubSeq2 - 1]][sol[initSubSeq2]] + matrizAdj[sol[initSubSeq2 + sizeSubSeq2 - 1]][sol[initSubSeq2 + sizeSubSeq2]]);
+
+      finalCost = (matrizAdj[sol[initSubSeq1 - 1]][sol[initSubSeq2]] + matrizAdj[sol[initSubSeq2 + sizeSubSeq2 - 1]][sol[initSubSeq1 + sizeSubSeq1]] +
+                   matrizAdj[sol[initSubSeq2 - 1]][sol[initSubSeq1]] + matrizAdj[sol[initSubSeq1 + sizeSubSeq1 - 1]][sol[initSubSeq2 + sizeSubSeq2]]) -
+                  (matrizAdj[sol[initSubSeq1 - 1]][sol[initSubSeq1 + sizeSubSeq1]] + matrizAdj[sol[initSubSeq2 - 1]][sol[initSubSeq2 + sizeSubSeq2]]);
+
+      deltaCost = finalCost + initialCost;
+    }
+
+    sol.erase(sol.begin() + initSubSeq1, sol.begin() + initSubSeq1 + (sizeSubSeq1));
+    sol.insert(sol.begin() + initSubSeq1, subSeq2.begin(), subSeq2.begin() + subSeq2.size());
+
+    sol.erase(sol.begin() + initSubSeq2 + (sizeSubSeq2 - sizeSubSeq1), sol.begin() + initSubSeq2 + (sizeSubSeq2 - sizeSubSeq1) + (sizeSubSeq2));
+    sol.insert(sol.begin() + initSubSeq2 + (sizeSubSeq2 - sizeSubSeq1), subSeq1.begin(), subSeq1.begin() + subSeq1.size());
   }
 
-  children.push_back(1);
-
-  //Mostra resultados
-  printSol(children);
+  return cost + deltaCost;
 }
 
 // Untils
@@ -346,7 +509,6 @@ void printData(){
     cout << endl;
   }
 }
-
 void printPop(vector<tChromosome> &pop){
   cout << "POPULATION" << endl << endl;
 
@@ -360,7 +522,6 @@ void printPop(vector<tChromosome> &pop){
     cout << "]" << endl;
   }
 }
-
 void printSol(vector<int> &sol){
   cout << "SOLUTION" << endl << endl;
   cout << "[ ";
@@ -369,23 +530,14 @@ void printSol(vector<int> &sol){
     cout << sol[i] << " ";
   }
 
-  cout << "]" << endl;
+  cout << "]" << endl << endl;
 }
-
-// void custoSolucao(int *custoTotal, vector<int> solucao, int tamanhoArray)
-// {
-//   *custoTotal = 0;
-
-//   for (size_t i = 0; i < solucao.size() - 1; i++)
-//   {
-//     *custoTotal += matrizAdj[solucao[i]][solucao[i + 1]];
-//   }
-// }
-
 bool compareByCost(const tInsertion &data1, const tInsertion &data2){
   return data1.cost < data2.cost;
 }
-
+bool compareSolByCost(const tChromosome &data1, const tChromosome &data2){
+  return data1.cost < data2.cost;
+}
 void showAdjacenciesList(vector< vector< pair<int, int> > > listOfAdjacencies, int father, int mother){
   cout << "ADJ LIST - FATHER " << father+1 << " - MOTHER " << mother+1 << endl << endl;
 
@@ -401,7 +553,6 @@ void showAdjacenciesList(vector< vector< pair<int, int> > > listOfAdjacencies, i
 
   cout << endl;
 }
-
 void printMatAdjIncluded(int **matAdjIncluded){
   cout << "POPULAÇAO" << endl << endl;
 
@@ -415,3 +566,13 @@ void printMatAdjIncluded(int **matAdjIncluded){
     cout << "]" << endl;
   }
 }
+void custoSolucao(int *custoTotal, vector<int> solucao, int tamanhoArray){
+  *custoTotal = 0;
+
+  for (size_t i = 0; i < solucao.size() - 1; i++)
+  {
+    *custoTotal += matrizAdj[solucao[i]][solucao[i + 1]];
+  }
+}
+
+// Tests

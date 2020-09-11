@@ -2,7 +2,7 @@
 
 O TSP se trata de um problema de otimização combinatória da classe NP-difícil bastante conhecido e estudado na literatura.
 
-Para entender o problema, imagine um vendedor com um conjunto pré-determinado de clientes onde cada cliente possui um custo de viagem (que pode ser tempo, distância ou qualquer variável relevante) dele para os outros clientes, ou seja, o custo de viagem do cliente N1 para o cliente N2 pode ser 200 enquanto do N1 para o N3 150. A ideia é que o vendedor passe por cada cliente somente uma vez e tenha que voltar ao ponto de partida no fim do percurso. Para reduzir custos, é necessário escolher uma rota, dentre todas as rotas possíveis, onde o somatório dos custos da viagem entre os clientes seja a menor.
+Para entender o problema, imagine um vendedor com um conjunto pré-determinado de clientes para atender, onde cada cliente possui um custo de viagem (que pode ser tempo, distância ou qualquer variável relevante) dele para os outros clientes. Ou seja, o custo de viagem do cliente N1 para o cliente N2 pode ser 200 enquanto do N1 para o N3 150. A ideia é que o vendedor passe por cada cliente somente uma vez e tenha que voltar ao ponto de partida no fim do percurso. Para reduzir custos, é necessário escolher uma rota, dentre todas as rotas possíveis, onde o somatório dos custos da viagem entre os clientes seja a menor.
 
 ## Formas de resolução
 
@@ -10,7 +10,7 @@ Existem dois métodos que podem ser seguidos para resolver problemas como o desc
 
 Métodos exatos visam iterar sobre todo o conjunto de soluções de um problema para obter sua resposta. Por conta disso, eles retornam a solução ótima do problema, ou seja, a melhor dentre todas as soluções. Por outro lado, para problemas da classe NP, não é possível encontrar estas soluções em tempo computacional aceitável a partir de certo ponto. Para ilustrar, uma instância do TSP com 60 vértices possui uma quantidade de soluções possíveis semelhante a quantidade de átomos no universo!
 
-Por outro lado, existem os métodos heurísticos. Eles tentam resolver estes problemas com um tempo computacional aceitável, porém sem garantir sua otimalidade, e que podem trazer boas soluções. Assim como as meta-heurísticos, que tem a mesma finalidade, porém com o intuito de resolver vários tipos de problemas diferentes com um mesmo algoritmo.
+Por outro lado, existem os métodos heurísticos. Eles tentam resolver estes problemas com um tempo computacional aceitável, porém sem garantir sua otimalidade. Assim como as meta-heurísticos, que tem a mesma finalidade, porém com o intuito de resolver vários tipos de problemas diferentes com um mesmo algoritmo. Por mais que a otimalidade não seja garantida, muitas heurísticas e meta-heurísticas conseguem encontrar resultados ótimos ou muito próximo deles para uma grande gama de problemas.
 
 O algorítmio implementado neste repositório para resolver o TSP se trata de uma meta-heurística denominado [Algorítimo Genético](https://pt.wikipedia.org/wiki/Algoritmo_gen%C3%A9tico) adaptado para resolver o presente problema.
 
